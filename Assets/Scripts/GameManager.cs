@@ -18,6 +18,12 @@ public class GameManager : MonoBehaviour
     private int countCorrectPicks;
     private int gamePicks;
     private bool canPick = false;
+    public int score = 0;
+    public Text scoreText;
+    public int combo = 0;
+    public int comboBonus = 10;
+    public Text comboText;
+    public bool isFirstMatch = true;
 
     void Start()
     {
@@ -54,7 +60,27 @@ public class GameManager : MonoBehaviour
         }
         difficultyMenu.SetActive(false);
     }
-
+    public void UpdateScoreUI()
+    {
+        if (scoreText != null)
+        {
+            scoreText.text = "SCORE: " + score.ToString();
+        }
+    }
+    public void UpdateComboUI()
+    {
+        if (comboText != null)
+        {
+            if (combo > 0)
+            {
+                comboText.text = "COMBO: " + combo.ToString();
+            }
+            else
+            {
+                comboText.text = "COMBO: 0";
+            }
+        }
+    }
     public void SetLevel()
     {
         SetDifficulty(currentDifficulty);
@@ -179,15 +205,12 @@ public class GameManager : MonoBehaviour
         }
         StartCoroutine(ShowAllPuzzlesTemporarily());
     }
-
-
     IEnumerator CheckMatch(int firstIndex, int secondIndex)
     {
         yield return new WaitForSeconds(0.5f);
 
         if (gamePuzzles[firstIndex].name == gamePuzzles[secondIndex].name)
         {
-
             buttons[firstIndex].interactable = false;
             buttons[secondIndex].interactable = false;
             float duration = 1f;
@@ -208,11 +231,31 @@ public class GameManager : MonoBehaviour
             }
             buttons[firstIndex].image.color = targetColor;
             buttons[secondIndex].image.color = targetColor;
+
             countCorrectPicks++;
+
+            score += 5;
+
+            if (!isFirstMatch)
+            {
+                combo++;
+                score += combo * comboBonus;
+            }
+            else
+            {
+                isFirstMatch = false;
+            }
+
+            UpdateScoreUI();
+            UpdateComboUI();
+
             CheckIfTheGameIsFinished();
         }
         else
         {
+            combo = 0;
+            isFirstMatch = true;
+            UpdateComboUI();
             yield return new WaitForSeconds(0.5f);
             buttons[firstIndex].image.sprite = bgImage;
             buttons[secondIndex].image.sprite = bgImage;
@@ -231,8 +274,6 @@ public class GameManager : MonoBehaviour
             ResetGame();
         }
     }
-
-
     public void AddGamePuzzles()
     {
         int loop = buttons.Count;
@@ -247,7 +288,6 @@ public class GameManager : MonoBehaviour
             index++;
         }
     }
-
     void Shuffle(List<Sprite> list)
     {
         for (int i = 0; i < list.Count; i++)
