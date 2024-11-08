@@ -4,11 +4,12 @@ using UnityEngine.EventSystems;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using JetBrains.Annotations;
+
 
 public class GameManager : MonoBehaviour
 {
-    public GameObject difficultyMenu;
-    private string currentDifficulty;
+    public string currentDifficulty;
     public List<Button> buttons = new List<Button>();
     public Sprite bgImage;
     public Sprite[] puzzles;
@@ -24,19 +25,26 @@ public class GameManager : MonoBehaviour
     public int comboBonus = 10;
     public Text comboText;
     public bool isFirstMatch = true;
+    public GameObject dificultyPanel;
+    public GameObject gamePanel;
+    public int highScore = 0;
+    public Text highScoreText;
+    public static GameManager instance;
 
-    void Start()
+    private void Start()
     {
-        difficultyMenu.SetActive(true);
-    }
-
-    void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.R))
+        if(instance == null)
         {
-            SceneManager.LoadScene(0);
+            instance = this;
         }
+        LoadHighScore();
+        UpdateHighScoreUI();
     }
+    void LoadHighScore()
+    {
+        highScore = PlayerPrefs.GetInt("HighScore", 0);
+    }
+
 
     public void SetDifficulty(string difficulty)
     {
@@ -45,20 +53,31 @@ public class GameManager : MonoBehaviour
             AddPuzzle.instance.puzzleParts = 4;
             AddPuzzle.instance.gridLayout.constraintCount = 2;
             AddPuzzle.instance.gridLayout.cellSize = new Vector2(300, 300);
+            
         }
         else if (difficulty == "Medium")
         {
             AddPuzzle.instance.puzzleParts = 8;
             AddPuzzle.instance.gridLayout.constraintCount = 4;
             AddPuzzle.instance.gridLayout.cellSize = new Vector2(200, 200);
+            
         }
         else if (difficulty == "Hard")
         {
             AddPuzzle.instance.puzzleParts = 12;
             AddPuzzle.instance.gridLayout.constraintCount = 4;
             AddPuzzle.instance.gridLayout.cellSize = new Vector2(200, 200);
+           
         }
-        difficultyMenu.SetActive(false);
+        dificultyPanel.SetActive(false);
+        gamePanel.SetActive(true);
+    }
+    public void UpdateHighScoreUI()
+    {
+        if (highScoreText != null)
+        {
+            highScoreText.text = "HIGHSCORE: " + highScore.ToString();
+        }
     }
     public void UpdateScoreUI()
     {
@@ -156,6 +175,7 @@ public class GameManager : MonoBehaviour
     {
         float duration = 0.3f;
         float elapsedTime = 0f;
+        SFXSounds.instance.PlaySFX(0);
         while (elapsedTime < duration)
         {
             elapsedTime += Time.deltaTime;
@@ -205,6 +225,34 @@ public class GameManager : MonoBehaviour
         }
         StartCoroutine(ShowAllPuzzlesTemporarily());
     }
+    public void ResetGameState()
+    {
+        currentDifficulty = "";
+        buttons.Clear();
+        gamePuzzles.Clear();
+        picksQueue.Clear();
+        countPicks = 0;
+        countCorrectPicks = 0;
+        gamePicks = 0;
+        canPick = false;
+        combo = 0;
+        isFirstMatch = true;
+
+        if (scoreText != null)
+        {
+            scoreText.text = "SCORE: " + score.ToString();
+        }
+        if (comboText != null)
+        {
+            comboText.text = "COMBO: 0";
+        }
+
+        dificultyPanel.SetActive(true);
+        gamePanel.SetActive(false);
+
+        Debug.Log("Game state has been reset.");
+    }
+
     IEnumerator CheckMatch(int firstIndex, int secondIndex)
     {
         yield return new WaitForSeconds(0.5f);
@@ -215,7 +263,7 @@ public class GameManager : MonoBehaviour
             buttons[secondIndex].interactable = false;
             float duration = 1f;
             float elapsed = 0f;
-
+            SFXSounds.instance.PlaySFX(1);
             Color startColor = buttons[firstIndex].image.color;
             Color targetColor = new Color(0, 0, 0, 0);
 
@@ -248,11 +296,11 @@ public class GameManager : MonoBehaviour
 
             UpdateScoreUI();
             UpdateComboUI();
-
             CheckIfTheGameIsFinished();
         }
         else
         {
+            SFXSounds.instance.PlaySFX(2);
             combo = 0;
             isFirstMatch = true;
             UpdateComboUI();
@@ -264,16 +312,33 @@ public class GameManager : MonoBehaviour
         countPicks++;
     }
 
-
     public void CheckIfTheGameIsFinished()
     {
         if (countCorrectPicks == gamePicks)
         {
             Debug.Log("Game Finished");
             Debug.Log("It took you " + countPicks + " guesses to finish the game");
-            ResetGame();
+            SFXSounds.instance.PlaySFX(3);
+
+            if (score > highScore)
+            {
+                highScore = score;
+                PlayerPrefs.SetInt("HighScore", highScore);
+                PlayerPrefs.Save();
+                Debug.Log("New High Score: " + highScore);
+            }
+
+            UpdateHighScoreUI();
+            StartCoroutine(ShowNextLevelPanelWithDelay());
         }
     }
+
+    private IEnumerator ShowNextLevelPanelWithDelay()
+    {
+        yield return new WaitForSeconds(1f);
+        Panels.instance.NextLevelPanel();
+    }
+
     public void AddGamePuzzles()
     {
         int loop = buttons.Count;
